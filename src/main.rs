@@ -1,24 +1,36 @@
-use sysctl::Sysctl;
-
+#[cfg(target_os = "macos")]
 fn main() {
-    let cpu_brand = sysctl::Ctl::new("machdep.cpu.brand_string").unwrap();
-    let ncpus = sysctl::Ctl::new("hw.ncpu").unwrap();
-    let perf_cores = sysctl::Ctl::new("hw.perflevel0.physicalcpu").unwrap();
-    let eff_cores = sysctl::Ctl::new("hw.perflevel1.physicalcpu").unwrap();
-    let mem_size = sysctl::Ctl::new("hw.memsize").unwrap();
+    use sysctl::Sysctl;
 
-    println!(
-        "machdep.cpu.brand_string: {}",
-        cpu_brand.value_string().unwrap()
-    );
-    println!("hw.ncpu: {}", ncpus.value_string().unwrap());
-    println!(
-        "hw.perflevel0.physicalcpu: {}",
-        perf_cores.value_string().unwrap()
-    );
-    println!(
-        "hw.perflevel1.physicalcpu: {}",
-        eff_cores.value_string().unwrap()
-    );
-    println!("hw.memsize: {}", mem_size.value_string().unwrap());
+    let keys = [
+        "machdep.cpu.brand_string",
+        "hw.ncpu",
+        "hw.perflevel0.physicalcpu",
+        "hw.perflevel1.physicalcpu",
+        "hw.memsize",
+    ];
+
+    for key in keys {
+        let value = sysctl::Ctl::new(key).and_then(|ctl| ctl.value_string());
+        let value = match value {
+            Ok(v) if key == "hw.memsize" => format_bytes(&v),
+            Ok(v) => v,
+            Err(_) => "n/a".to_string(),
+        };
+        println!("{key}: {value}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn format_bytes(raw: &str) -> String {
+    match raw.trim().parse::<u64>() {
+        Ok(bytes) => format!("{:.1} GiB", bytes as f64 / (1u64 << 30) as f64),
+        Err(_) => raw.to_string(),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    eprintln!("specs only supports macOS");
+    std::process::exit(1);
 }

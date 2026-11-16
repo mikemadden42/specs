@@ -19,47 +19,54 @@ jobs:
           ]
         toolchain: [stable, beta, nightly]
     steps:
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v5
+      - name: Install ${{ matrix.toolchain }} toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          override: true
-      - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --verbose
         continue-on-error: ${{ matrix.toolchain != 'stable' }}
-      - name: Run tests
-        run: cargo test --verbose
+      - name: Run
+        if: runner.os == 'macOS'
+        run: cargo run
         continue-on-error: ${{ matrix.toolchain != 'stable' }}
 
-  clippy:
-    name: clippy (ubuntu-latest, stable)
-    runs-on: ubuntu-latest
+  msrv:
+    name: msrv (macos-latest, 1.61.0)
+    runs-on: macos-latest
     steps:
-      - name: Install latest stable
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v5
+      - name: Install 1.61.0 toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-          override: true
+          toolchain: 1.61.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and run
+        run: cargo run --locked
+
+  clippy:
+    name: clippy (macos-latest, stable)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
           components: clippy
-      - name: Checkout sources
-        uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: Cargo Clippy
-        run: cargo clippy -- -D warnings -A deprecated
+        run: cargo clippy --all-targets -- -D warnings
 
   fmt:
     name: fmt (ubuntu-latest, stable)
     runs-on: ubuntu-latest
     steps:
-      - name: Install latest stable
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v5
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
           components: rustfmt
-      - name: Checkout sources
-        uses: actions/checkout@v3
       - name: Check Formatting
         run: cargo fmt --all -- --check
